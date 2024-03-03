@@ -10,7 +10,8 @@ Quantize: quantize static setting
  <br />
  <br />
 Step0 <br />
-Please install obs, cuda, and cudnn. <br />
+Please install obs <br />
+if you want GPU cuda=11.8, and cudnn=8.7 <br />
 Step1 <br />
 pip install -r requirements.txt <br />
 Step2 <br />
