@@ -25,6 +25,9 @@ jobs:
           pip install -r requirements.txt
       # - name: Build the Docker image
       #   run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
-      - name: test
+      - name: format and test
         run: |
+          flake8 .
+          black .
           pytest
+
