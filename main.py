@@ -88,7 +88,6 @@ def main():
     sess_options = ort.SessionOptions()
     sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     try:
-        # raise("eiei")
         sess = ort.InferenceSession("human_segment_int8.onnx", providers=EP_list, sess_options=sess_options)
         output_name = sess.get_outputs()[0].name
         input_name = sess.get_inputs()[0].name
