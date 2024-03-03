@@ -89,13 +89,13 @@ def main():
     sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     try:
         # raise("eiei")
-        sess = ort.InferenceSession("human_segment_29_int8.onnx", providers=EP_list, sess_options=sess_options)
+        sess = ort.InferenceSession("human_segment_int8.onnx", providers=EP_list, sess_options=sess_options)
         output_name = sess.get_outputs()[0].name
         input_name = sess.get_inputs()[0].name
         fake_image = np.ones([1,3,224,224], dtype=np.float32)
         prediction = sess.run([output_name], {input_name: fake_image})[0]
     except:
-        sess = ort.InferenceSession("human_segment_29_int8.onnx", providers=['CPUExecutionProvider'], sess_options=sess_options)
+        sess = ort.InferenceSession("human_segment_int8.onnx", providers=['CPUExecutionProvider'], sess_options=sess_options)
     output_name = sess.get_outputs()[0].name
     input_name = sess.get_inputs()[0].name
     # Start virtual cam with 1280x720 30fps
