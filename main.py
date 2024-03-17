@@ -41,6 +41,7 @@ def remove_noise(ori):
 def main():
     # Check the available device (GPU or CPU)
     device = check_device()
+    device = "CPU"
     W = 1280
     H = 720
     FPS = 30

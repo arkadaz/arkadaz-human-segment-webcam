@@ -1,4 +1,0 @@
-pyvirtualcam
-opencv-python
-onnxruntime-gpu
-numba
