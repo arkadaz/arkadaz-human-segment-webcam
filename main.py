@@ -23,28 +23,14 @@ def mask_image(ori, mask):
         ori[x, y, i] *= mask[x, y]
 
 
-# CUDA kernel to remove noise from an image
-@cuda.jit
-def remove_noise(ori):
-    x = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-    y = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
-    if x >= ori.shape[0]:
-        return
-    if y >= ori.shape[1]:
-        return
-    if ori[x, y] >= 2:
-        ori[x, y] = 1
-    else:
-        ori[x, y] = 0
-
-
 def main():
     # Check the available device (GPU or CPU)
     device = check_device()
-    device = "CPU"
     W = 1280
     H = 720
     FPS = 30
+
+    MODEL_NAME = "human_segment_int8.onnx"
 
     W_bg_remove = 224
     H_bg_remove = 224
@@ -62,7 +48,7 @@ def main():
     sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     try:
         sess = ort.InferenceSession(
-            "human_segment_int8.onnx", providers=EP_list, sess_options=sess_options
+            MODEL_NAME, providers=EP_list, sess_options=sess_options
         )
         output_name = sess.get_outputs()[0].name
         input_name = sess.get_inputs()[0].name
@@ -71,7 +57,7 @@ def main():
     except:
         # If CUDAExecutionProvider fails, use CPUExecutionProvider
         sess = ort.InferenceSession(
-            "human_segment_int8.onnx",
+            MODEL_NAME,
             providers=["CPUExecutionProvider"],
             sess_options=sess_options,
         )
@@ -94,48 +80,36 @@ def main():
 
                     # Run inference on the preprocessed frame
                     prediction = sess.run([output_name], {input_name: image_data})[0]
-                    prediction = np.argmax(prediction[0], axis=0) * 255
+                    matting_img = np.squeeze(((1/(1 + np.exp(-prediction)))))
+
 
                     # Post-process the segmentation mask
                     frame_sent = cv2.resize(
-                        np.uint8(np.squeeze(prediction)),
+                        matting_img,
                         (W, H),
                         interpolation=cv2.INTER_LINEAR,
                     )
-                    contours, hierarchy = cv2.findContours(
-                        frame_sent, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
-                    )
 
-                    # Create a mask based on the largest contour
-                    try:
-                        contour = max(contours, key=cv2.contourArea)
-                        frame_mask = np.zeros_like(frame_sent)
-                        cv2.fillPoly(frame_mask, pts=[contour], color=(255, 255, 255))
-                    except:
-                        frame_mask = np.zeros_like(frame_sent)
-
-                    # Apply the mask to the frame
+                    hsv = cv2.cvtColor(frame_flip, cv2.COLOR_BGR2HSV)
+                    hsv = np.array(hsv, dtype = np.float64)
                     if device == "GPU":
-                        frame_mask = numba.cuda.to_device(
-                            np.ascontiguousarray(frame_mask)
+                        hsv = numba.cuda.to_device(
+                            np.ascontiguousarray(hsv)
                         )
-                        frame_flip = numba.cuda.to_device(
-                            np.ascontiguousarray(frame_flip)
+                        frame_sent = numba.cuda.to_device(
+                            np.ascontiguousarray(frame_sent)
                         )
-                        remove_noise[
-                            blocks_per_grid_2d_full_scale,
-                            threads_per_block_2d_full_scale,
-                        ](frame_mask)
                         mask_image[
                             blocks_per_grid_2d_full_scale,
                             threads_per_block_2d_full_scale,
-                        ](frame_flip, frame_mask)
-                        frame_flip = frame_flip.copy_to_host()
+                        ](hsv, frame_sent)
+                        hsv = hsv.copy_to_host()
                     else:
-                        frame_mask[frame_mask >= 2] = 1
-                        frame_mask[frame_mask != 1] = 0
                         for i in range(3):
-                            frame_flip[:, :, i] = frame_flip[:, :, i] * frame_mask
+                            hsv[:,:,i] = hsv[:,:,i] * frame_sent
+                        hsv = np.array(hsv, dtype = np.uint8)
+                    hsv = np.array(hsv, dtype = np.uint8)
+                    frame_flip = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
                     # Display the processed frame
                     key = cv2.waitKey(1)
