@@ -1,4 +1,4 @@
-Real-time human segmentation. <br />
+Real-time human image matting. <br />
 Model_pretrain: MobileOne_S4:Imagenet <br />
 Training dataset: Supervisely Person Dataset <br />
 Quantize: quantize static setting 
