@@ -5,8 +5,9 @@ import numpy as np
 import onnxruntime as ort
 from numba import cuda, prange
 from math import ceil
-import subprocess
 import numba
+
+
 from helper.helper_function import preprocess, check_device
 
 
